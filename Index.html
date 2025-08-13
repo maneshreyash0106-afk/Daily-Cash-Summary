@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Cash Collection System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .receipt {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: all 0.3s ease;
+        }
+        .receipt:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">Daily Cash Collection Dashboard</h1>
+            <p class="text-gray-600">Manage your daily collections efficiently</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+            <!-- Summary Cards -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500">Today's Collection</p>
+                        <h2 class="text-2xl font-bold text-green-600" id="totalCollection">₹0</h2>
+                        <div id="collectionBreakdown" class="mt-1 text-sm"></div>
+                    </div>
+                    <div class="bg-green-100 p-3 rounded-full">
+                        <i class="fas fa-rupee-sign text-green-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500">Pending Collections</p>
+                        <h2 class="text-2xl font-bold text-red-600" id="totalPending">₹0</h2>
+                    </div>
+                    <div class="bg-red-100 p-3 rounded-full">
+                        <i class="fas fa-clock text-red-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500">Total Cash</p>
+                        <h2 class="text-2xl font-bold text-blue-600" id="totalCash">₹0</h2>
+                    </div>
+                    <div class="bg-blue-100 p-3 rounded-full">
+                        <i class="fas fa-money-bill-wave text-blue-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500">Total Online</p>
+                        <h2 class="text-2xl font-bold text-purple-600" id="totalOnline">₹0</h2>
+                    </div>
+                    <div class="bg-purple-100 p-3 rounded-full">
+                        <i class="fas fa-mobile-alt text-purple-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Entry Form -->
+            <div class="bg-white rounded-lg shadow p-6 lg:col-span-1">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">Add New Collection</h2>
+                <form id="collectionForm" class="space-y-4">
+                    <div>
+                        <label class="block text-gray-700 mb-2" for="billNo">Bill No.</label>
+                        <input type="text" id="billNo" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 mb-2" for="customerName">Customer Name</label>
+                        <input type="text" id="customerName" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 mb-2" for="amount">Amount (₹)</label>
+                        <input type="number" id="amount" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 mb-2" for="paymentMode">Payment Mode</label>
+                        <select id="paymentMode" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                            <option value="" disabled selected>Select payment mode</option>
+                            <option value="Cash">Cash</option>
+                            <option value="Online">Online (UPI/Bank Transfer)</option>
+                            <option value="Pending">Pending</option>
+                        </select>
+                    </div>
+                    <div id="utrContainer" class="hidden">
+                        <label class="block text-gray-700 mb-2" for="utrNo">UTR/Reference No.</label>
+                        <input type="text" id="utrNo" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-200 flex items-center justify-center">
+                        <i class="fas fa-plus-circle mr-2"></i> Add Collection
+                    </button>
+                </form>
+            </div>
+
+            <!-- Collection List and Closing -->
+            <div class="bg-white rounded-lg shadow p-6 lg:col-span-2">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold text-gray-800">Today's Collections (<span id="currentDate"></span>)</h2>
+                    <div class="flex space-x-2">
+                        <button id="downloadBtn" class="bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition duration-200 flex items-center">
+                            <i class="fas fa-file-excel mr-2"></i> Export to Excel
+                        </button>
+                        <button id="closeDayBtn" class="bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 transition duration-200 flex items-center">
+                            <i class="fas fa-lock mr-2"></i> Close Day
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="py-2 px-4 border-b">Bill No.</th>
+                                <th class="py-2 px-4 border-b">Customer Name</th>
+                                <th class="py-2 px-4 border-b">Amount</th>
+                                <th class="py-2 px-4 border-b">Mode</th>
+                                <th class="py-2 px-4 border-b">Status</th>
+                                <th class="py-2 px-4 border-b">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="collectionTable">
+                            <!-- Collections will be added here dynamically -->
+                            <tr id="noDataRow">
+                                <td colspan="6" class="py-4 text-center text-gray-500">No collections added yet</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="mt-6" id="dayClosedMessage" style="display: none;">
+                    <div class="bg-blue-50 border-l-4 border-blue-500 p-4">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-info-circle text-blue-500"></i>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm text-blue-700">
+                                    Day has been closed. Please start a new day to add collections.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize collections array from localStorage or empty array
+            let collections = JSON.parse(localStorage.getItem('collections')) || [];
+            let dayClosed = localStorage.getItem('dayClosed') === 'true';
+            
+            // Set current date
+            const today = new Date();
+            const formattedDate = today.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric',
+                weekday: 'short'
+            });
+            document.getElementById('currentDate').textContent = formattedDate;
+            
+            // Payment mode change handler
+            const paymentMode = document.getElementById('paymentMode');
+            const utrContainer = document.getElementById('utrContainer');
+            
+            paymentMode.addEventListener('change', function() {
+                if (this.value === 'Online') {
+                    utrContainer.classList.remove('hidden');
+                    // Only require UTR if status is completed (we'll handle this in form submit)
+                } else {
+                    utrContainer.classList.add('hidden');
+                }
+            });
+            
+            // Form submission handler
+            const collectionForm = document.getElementById('collectionForm');
+            
+            collectionForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                if (dayClosed) {
+                    alert('Day has been closed. Please start a new day to add collections.');
+                    return;
+                }
+                
+                // Get form values
+                const billNo = document.getElementById('billNo').value;
+                const customerName = document.getElementById('customerName').value;
+                const amount = parseFloat(document.getElementById('amount').value);
+                const paymentModeValue = document.getElementById('paymentMode').value;
+                
+                // Handle UTR and status based on payment mode
+                let utrNo = '';
+                let status = 'Pending';
+                
+                if (paymentModeValue === 'Online') {
+                    utrNo = document.getElementById('utrNo').value;
+                    
+                    // For online payments, first check payment status
+                    const paymentStatus = prompt('Payment Status:\nEnter "S" for Success or "F" for Failed');
+                    
+                    if (paymentStatus && paymentStatus.toUpperCase() === 'S') {
+                        status = 'Completed';
+                        if (!utrNo) {
+                            alert('Please provide UTR/Reference number for successful online payments');
+                            document.getElementById('utrNo').focus();
+                            return;
+                        }
+                        alert('Payment successful! UTR recorded.');
+                    } else if (paymentStatus === null) {
+                        // User cancelled
+                        return;
+                    } else {
+                        // Failed or invalid input
+                        status = 'Pending';
+                        alert('Payment not received! This pending transaction will be highlighted at day closing.');
+                        utrNo = ''; // Clear any entered UTR if payment failed
+                    }
+                } else if (paymentModeValue === 'Cash') {
+                    status = 'Completed';  // Cash payments are always completed immediately
+                } else if (paymentModeValue === 'Pending') {
+                    status = 'Pending';  // Explicit pending payment
+                }
+                
+                const timestamp = new Date().toISOString();
+                
+                // Create new collection object
+                const newCollection = {
+                    billNo,
+                    customerName,
+                    amount,
+                    paymentMode: paymentModeValue,
+                    utrNo,
+                    timestamp,
+                    status
+                };
+                
+                // Add to collections array
+                collections.push(newCollection);
+                
+                // Save to localStorage
+                localStorage.setItem('collections', JSON.stringify(collections));
+                
+                // Update UI
+                updateUI();
+                
+                // Reset and clear form
+                document.getElementById('billNo').value = '';
+                document.getElementById('customerName').value = '';
+                document.getElementById('amount').value = '';
+                document.getElementById('paymentMode').selectedIndex = 0;
+                document.getElementById('utrNo').value = '';
+                utrContainer.classList.add('hidden');
+                
+                // Show success message
+                alert('Collection added successfully!');
+            });
+            
+            // Download button handler
+            const downloadBtn = document.getElementById('downloadBtn');
+            
+            downloadBtn.addEventListener('click', function() {
+                if (collections.length === 0) {
+                    alert('No collections to export.');
+                    return;
+                }
+                
+                // Prepare data for Excel
+                const excelData = collections.map(item => ({
+                    'Bill No.': item.billNo,
+                    'Customer Name': item.customerName,
+                    'Amount (₹)': item.amount,
+                    'Payment Mode': item.paymentMode,
+                    'UTR/Reference No.': item.paymentMode === 'Online' ? item.utrNo : 'N/A',
+                    'Status': item.status,
+                    'Time': new Date(item.timestamp).toLocaleString()
+                }));
+                
+                // Create worksheet
+                const ws = XLSX.utils.json_to_sheet(excelData);
+                
+                // Create workbook
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Collections');
+                
+                // Generate file and download
+                const dateStr = today.toISOString().split('T')[0];
+                XLSX.writeFile(wb, `Collections_${dateStr}.xlsx`);
+            });
+            
+            // Close day button handler
+            const closeDayBtn = document.getElementById('closeDayBtn');
+            
+            closeDayBtn.addEventListener('click', function() {
+                if (collections.length === 0) {
+                    alert('No collections to close. Add at least one collection before closing the day.');
+                    return;
+                }
+
+                // Check for successfully completed online payments missing UTR (invalid case)
+                const missingUTR = collections.filter(item => 
+                    item.paymentMode === 'Online' && 
+                    item.status === 'Completed' && 
+                    !item.utrNo
+                );
+
+                // Get remaining pending online payments (expected if payment failed)
+                const pendingOnline = collections.filter(item =>
+                    item.paymentMode === 'Online' && 
+                    item.status === 'Pending'
+                );
+
+                // Pending online payments with UTR
+                const pendingOnlineWithUTR = pendingOnline.filter(item => item.utrNo);
+                // Pending online payments without UTR
+                const pendingOnlineWithoutUTR = pendingOnline.filter(item => !item.utrNo);
+
+                if (pendingOnline.length > 0) {
+                    const pendingList = pendingOnline.map(item => 
+                        `- Bill ${item.billNo}: ₹${item.amount} (${item.customerName})`  
+                    ).join('\n');
+                    alert(`Reminder: You have ${pendingOnline.length} online payment(s) that were not received:\n\n${pendingList}\n\nPlease follow up with these customers!`);
+                }
+
+                if (pendingOnlineWithoutUTR.length > 0 || pendingOnlineWithUTR.length > 0) {
+                    let message = `Payment Status Review:\n\n`;
+                    if (pendingOnlineWithoutUTR.length > 0) {
+                        message += `⚠️ ${pendingOnlineWithoutUTR.length} online payment(s) failed without UTR (money not received)\n`;
+                    }
+                    if (pendingOnlineWithUTR.length > 0) {
+                        message += `🔄 ${pendingOnlineWithUTR.length} online payment(s) have UTR but still pending (verify money received)\n`;
+                    }
+                    message += `\nYou can:\n1. Mark received payments as completed with UTR\n` +
+                              `2. Leave failed payments as pending for next day\n` +
+                              `3. Cancel to review payments\n\n` +
+                              `Continue closing day?`;
+                    if (!confirm(message)) {
+                        return;
+                    }
+                }
+
+                if (missingUTR.length > 0) {
+                    alert(`Cannot close day. UTR/Reference number is missing for ${missingUTR.length} online payment(s).`);
+                    return;
+                }
+
+                if (confirm('Are you sure you want to close the day? This action cannot be undone.')) {
+                    // Mark day as closed
+                    dayClosed = true;
+                    localStorage.setItem('dayClosed', 'true');
+                    // Update UI
+                    updateUI();
+                    // Show day closed message
+                    document.getElementById('dayClosedMessage').style.display = 'block';
+                    alert('Day has been closed successfully. Collections have been recorded.');
+                }
+            });
+            
+            // Function to delete a collection
+            function deleteCollection(index) {
+                if (dayClosed) {
+                    alert('Day has been closed. No changes allowed.');
+                    return;
+                }
+                
+                if (collections[index].status === 'Pending') {
+                    alert("Cannot delete pending payments. Mark as completed first.");
+                    return;
+                }
+                
+                if (confirm('Are you sure you want to delete this collection?')) {
+                    collections.splice(index, 1);
+                    localStorage.setItem('collections', JSON.stringify(collections));
+                    updateUI();
+                }
+            }
+            
+            // Function to update the UI
+            function updateUI() {
+                const collectionTable = document.getElementById('collectionTable');
+                const noDataRow = document.getElementById('noDataRow');
+                
+                // Calculate totals
+                const totalCollection = collections.reduce((sum, item) => sum + item.amount, 0);
+                
+                const totalPending = collections.reduce((sum, item) => {
+                    return item.status === 'Pending' ? sum + item.amount : sum;
+                }, 0);
+                
+                const totalCash = collections.reduce((sum, item) => {
+                    return item.paymentMode === 'Cash' && item.status === 'Completed' ? sum + item.amount : sum;
+                }, 0);
+                
+                const totalOnline = collections.reduce((sum, item) => {
+                    return item.paymentMode === 'Online' && item.status === 'Completed' ? sum + item.amount : sum;
+                }, 0);
+                
+                // Update summary cards with breakdown
+                document.getElementById('totalCollection').textContent = '₹' + totalCollection.toFixed(2);
+                const completedAmount = collections.reduce((sum, item) => 
+                    item.status === 'Completed' ? sum + item.amount : sum, 0);
+                document.getElementById('collectionBreakdown').innerHTML = `
+                    <span class="text-blue-600">₹${completedAmount.toFixed(2)} completed</span> | 
+                    <span class="text-yellow-600">₹${totalPending.toFixed(2)} pending</span>
+                `;
+                document.getElementById('totalPending').textContent = '₹' + totalPending.toFixed(2);
+                document.getElementById('totalCash').textContent = '₹' + totalCash.toFixed(2);
+                document.getElementById('totalOnline').textContent = '₹' + totalOnline.toFixed(2);
+                
+                // Update collections table
+                collectionTable.innerHTML = '';
+                
+                if (collections.length === 0) {
+                    noDataRow.style.display = '';
+                    collectionTable.appendChild(noDataRow);
+                } else {
+                    noDataRow.style.display = 'none';
+                    
+                    collections.forEach((collection, index) => {
+                        const row = document.createElement('tr');
+                        row.className = `fade-in border-b ${collection.status === 'Pending' ? 'bg-yellow-50' : ''}`;
+                        row.innerHTML = `
+                            <td class="py-2 px-4">${collection.billNo}</td>
+                            <td class="py-2 px-4">${collection.customerName}</td>
+                            <td class="py-2 px-4 font-semibold">₹${collection.amount.toFixed(2)}</td>
+                            <td class="py-2 px-4">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                                    ${collection.paymentMode === 'Cash' ? 'bg-green-100 text-green-800' : 
+                                      collection.paymentMode === 'Online' ? 'bg-purple-100 text-purple-800' : 
+                                      'bg-gray-100 text-gray-800'}">
+                                    ${collection.paymentMode}
+                                </span>
+                                ${collection.paymentMode === 'Online' && collection.utrNo ? '<br><small class="text-xs text-gray-500">' + collection.utrNo + '</small>' : ''}
+                            </td>
+                            <td class="py-2 px-4">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                                    ${collection.status === 'Completed' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'}">
+                                    ${collection.status}
+                                </span>
+                            </td>
+                            <td class="py-2 px-4">
+                                <button onclick="deleteCollection(${index})" class="text-red-600 hover:text-red-800 ${dayClosed ? 'opacity-50 cursor-not-allowed' : ''}">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </td>
+                        `;
+                        collectionTable.appendChild(row);
+                    });
+                }
+                
+                // Update buttons based on day status
+                if (dayClosed) {
+                    document.getElementById('closeDayBtn').classList.add('cursor-not-allowed', 'opacity-50');
+                    document.getElementById('closeDayBtn').disabled = true;
+                    document.getElementById('downloadBtn').classList.add('cursor-not-allowed', 'opacity-50');
+                    document.getElementById('downloadBtn').disabled = true;
+                } else {
+                    document.getElementById('closeDayBtn').classList.remove('cursor-not-allowed', 'opacity-50');
+                    document.getElementById('closeDayBtn').disabled = false;
+                    document.getElementById('downloadBtn').classList.remove('cursor-not-allowed', 'opacity-50');
+                    document.getElementById('downloadBtn').disabled = false;
+                }
+            }
+            
+            // Initial UI update
+            updateUI();
+            
+            // Make deleteCollection function available globally
+            window.deleteCollection = deleteCollection;
+            
+            // Reset daily data (only for demo purposes - remove in production)
+            window.resetDailyData = function() {
+                if (confirm('WARNING: This will clear all collections and reset the day. Continue?')) {
+                    collections = [];
+                    dayClosed = false;
+                    localStorage.removeItem('collections');
+                    localStorage.removeItem('dayClosed');
+                    document.getElementById('dayClosedMessage').style.display = 'none';
+                    updateUI();
+                    alert('Daily data has been reset. You can now start a new day.');
+                }
+            };
+            
+            // For demo purposes - show reset button
+            const demoResetBtn = document.createElement('button');
+            demoResetBtn.textContent = 'Reset Daily Data';
+            demoResetBtn.className = 'fixed bottom-4 right-4 bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 z-50';
+            demoResetBtn.onclick = window.resetDailyData;
+            document.body.appendChild(demoResetBtn);
+        });
+    </script>
+</body>
+</html>
